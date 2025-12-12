@@ -12,8 +12,8 @@ IMAGENES = {
     "Press Inclinado": "https://www.lyfta.app/thumbnails/12991201.jpg",
     "Pec Deck": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Pec-Deck-Fly.gif",
     "Elevaciones Laterales": "https://fitcron.com/wp-content/uploads/2021/04/03111301-Dumbbell-Full-Can-Lateral-Raise_Shoulders_720.gif",
-    "Press Militar": "https://fitcron.com/wp-content/uploads/2021/04/04261301-Dumbbell-Standing-Overhead-Press_shoulder_720.gif",
-    "Tríceps Polea": "https://fitcron.com/wp-content/uploads/2021/04/12271301-Cable-Standing-One-Arm-Tricep-Pushdown-Overhand-Grip_Upper-Arms_720.gif",
+    "Press Militar": "https://i.pinimg.com/originals/67/b8/5a/67b85add1691a2620c3101b49a021899.gif",
+    "Tríceps Polea": "https://treinototal.com.br/wp-content/uploads/2023/06/triceps-corda.gif",
     "Remo Barra": "https://fitcron.com/wp-content/uploads/2021/04/01181301-Barbell-Reverse-Grip-Bent-over-Row_Back-FIX_720.gif",
     "Jalón Pecho": "https://vitruve.fit/wp-content/uploads/2021/11/vitruvs.gif",
     "Face Pull": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Face-Pull.gif",
@@ -139,5 +139,6 @@ with tab2:
             st.dataframe(df_chart[["Fecha", "Serie", "Peso", "Reps"]].sort_values("Fecha", ascending=False))
         else:
             st.info("Aún no hay datos.")
+
 
 
