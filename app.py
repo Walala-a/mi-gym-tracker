@@ -1,12 +1,55 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import time
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-st.set_page_config(page_title="Gym Tracker Pro", page_icon="💪", layout="wide")
+# --- CONFIGURACIÓN DE PÁGINA ---
+st.set_page_config(page_title="Gym Tracker Multi-User", page_icon="🏋️", layout="wide")
 
-# --- 1. DICCIONARIO DE IMÁGENES Y GIFS ---
+# --- 1. SISTEMA DE LOGIN MULTI-USUARIO ---
+def login():
+    """Maneja el inicio de sesión y retorna el usuario si es exitoso"""
+    if "usuario_actual" not in st.session_state:
+        st.session_state.usuario_actual = None
+
+    # Si ya está logueado, retornamos True
+    if st.session_state.usuario_actual:
+        return True
+
+    st.markdown("<h1 style='text-align: center;'>🔒 Gym Tracker Login</h1>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        with st.form("login_form"):
+            user = st.text_input("Usuario")
+            password = st.text_input("Contraseña", type="password")
+            submit = st.form_submit_button("Entrar 🚀", use_container_width=True)
+
+            if submit:
+                # Buscamos en los secretos la sección [usuarios]
+                usuarios_validos = st.secrets.get("usuarios", {})
+                
+                # Verificamos si usuario existe y la contraseña coincide
+                if user in usuarios_validos and usuarios_validos[user] == password:
+                    st.session_state.usuario_actual = user
+                    st.success(f"¡Bienvenido, {user}!")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("Usuario o contraseña incorrectos.")
+    
+    return False
+
+# Si no está logueado, detenemos la app aquí
+if not login():
+    st.stop()
+
+# --- USUARIO ACTUAL ---
+USUARIO = st.session_state.usuario_actual
+
+# --- 2. DICCIONARIO DE IMÁGENES Y GIFS ---
 IMAGENES = {
     "Fondos": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Chest-Dips.gif",
     "Press Inclinado": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Incline-Barbell-Bench-Press.gif",
@@ -18,7 +61,7 @@ IMAGENES = {
     "Remo Barra": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Bent-Over-Row.gif",
     "Jalón Pecho": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Lat-Pulldown.gif",
     "Face Pull": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Face-Pull.gif",
-    "Curl Bayesiano": "https://i.pinimg.com/originals/ce/0f/36/ce0f365d9539260195d8527a2068bf86.gif", # Referencia visual más cercana (Cable Curl espalda)
+    "Curl Bayesiano": "https://i.pinimg.com/originals/ce/0f/36/ce0f365d9539260195d8527a2068bf86.gif",
     "Curl Martillo": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Hammer-Curl.gif",
     "Sentadilla": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Squat.gif",
     "Hip Thrust": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Hip-Thrust.gif",
@@ -27,11 +70,12 @@ IMAGENES = {
     "Curl femoral sentado": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Seated-Leg-Curl.gif",
     "Abductores en maquina": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Seated-Hip-Abduction.gif",
     "Press Banca": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Bench-Press.gif",
-    "Fondos Lastre": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Chest-Dips.gif", # Misma técnica que fondos
+    "Fondos Lastre": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Chest-Dips.gif",
     "Press Francés": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Triceps-Extension.gif",
-    "Curl Araña": "https://d205bpvrqc9yn1.cloudfront.net/0309.gif", # Spider Curl con mancuernas
+    "Curl Araña": "https://d205bpvrqc9yn1.cloudfront.net/0309.gif",
 }
-# --- 2. CONEXIÓN INTELIGENTE (PC O NUBE) ---
+
+# --- 3. CONEXIÓN GOOGLE SHEETS ---
 def conectar_google_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     try:
@@ -44,8 +88,27 @@ def conectar_google_sheet():
         sheet = client.open("Gym_Data").sheet1 
         return sheet
     except Exception as e:
-        st.error(f"Error de conexión: {e}")
+        st.error(f"Error conectando a la nube: {e}")
         return None
+
+# --- 4. FUNCIÓN DEL TEMPORIZADOR ---
+def timer_descanso():
+    """Muestra una cuenta atrás y reproduce sonido"""
+    placeholder = st.empty()
+    progress_bar = st.progress(0)
+    tiempo_descanso = 60
+    
+    for i in range(tiempo_descanso, -1, -1):
+        porcentaje = (tiempo_descanso - i) / tiempo_descanso
+        progress_bar.progress(porcentaje)
+        placeholder.markdown(f"### ⏳ Descanso: {i}s")
+        time.sleep(1)
+    
+    placeholder.markdown("### 🔔 ¡A DARLE CAÑA!")
+    st.audio("https://cdn.pixabay.com/audio/2022/03/15/audio_243469c434.mp3", autoplay=True)
+    time.sleep(3)
+    placeholder.empty()
+    progress_bar.empty()
 
 # --- RUTINA ---
 rutina = {
@@ -56,87 +119,98 @@ rutina = {
     "Día 6: Brazos": ["Elevaciones Laterales", "Press Militar", "Press Francés", "Tríceps Polea", "Curl Araña", "Curl Martillo"]
 }
 
-# --- INTERFAZ PRINCIPAL ---
-st.title("💪 Mi Gym Tracker")
+# --- APP PRINCIPAL ---
+st.title(f"💪 Hola, {USUARIO}")
 sheet = conectar_google_sheet()
 
-tab1, tab2 = st.tabs(["🏋️ Registrar Entrenamiento", "📈 Ver Mi Progreso"])
+# Sidebar para Logout
+if st.sidebar.button("Cerrar Sesión"):
+    st.session_state.usuario_actual = None
+    st.rerun()
 
-# --- PESTAÑA 1: REGISTRO (CON SERIES) ---
+tab1, tab2 = st.tabs(["🏋️ Entrenar", "📈 Mi Progreso"])
+
+# --- PESTAÑA 1: ENTRENAMIENTO ---
 with tab1:
     if sheet:
-        dia = st.selectbox("¿Qué toca hoy?", list(rutina.keys()))
+        dia = st.selectbox("Elige tu rutina de hoy:", list(rutina.keys()))
+        st.divider()
         
-        with st.form("gym_form"):
-            st.subheader(f"Rutina: {dia}")
-            inputs = [] # Lista para guardar los datos temporalmente
-            
-            for ej in rutina[dia]:
-                st.markdown(f"### {ej}")
+        datos_a_guardar = []
+        
+        for ej in rutina[dia]:
+            with st.expander(f"**{ej}**", expanded=True):
                 if ej in IMAGENES:
-                    st.image(IMAGENES[ej], width=200)
+                    c_img, c_txt = st.columns([1, 2])
+                    c_img.image(IMAGENES[ej], use_container_width=True)
+                    c_txt.caption("Técnica controlada")
                 
-                # Encabezados pequeños
-                c_lbl1, c_lbl2 = st.columns(2)
-                c_lbl1.caption("Peso (Kg)")
-                c_lbl2.caption("Repeticiones")
-
-                # Generamos 4 espacios para series (Serie 1 a 4)
-                for i in range(1, 5): 
-                    c1, c2 = st.columns(2)
-                    # Usamos label_visibility="collapsed" para que no repita el titulo "Peso" 4 veces
-                    peso = c1.text_input(f"S{i}", key=f"{ej}_s{i}_k", placeholder=f"Serie {i}", label_visibility="collapsed")
-                    reps = c2.text_input(f"S{i}", key=f"{ej}_s{i}_r", placeholder="Reps", label_visibility="collapsed")
+                st.markdown("---")
+                for i in range(1, 5):
+                    c1, c2, c3 = st.columns([2, 2, 1])
                     
-                    # Guardamos la referencia para procesarla después
-                    inputs.append({"ejercicio": ej, "serie": i, "peso": peso, "reps": reps})
-                
-                st.divider()
-            
-            if st.form_submit_button("Guardar Entrenamiento 💾"):
+                    key_peso = f"{ej}_s{i}_peso"
+                    key_reps = f"{ej}_s{i}_reps"
+                    key_check = f"{ej}_s{i}_check"
+                    
+                    with c1:
+                        peso = st.text_input(f"Peso S{i}", key=key_peso, placeholder="Kg", label_visibility="collapsed")
+                    with c2:
+                        reps = st.text_input(f"Reps S{i}", key=key_reps, placeholder="Reps", label_visibility="collapsed")
+                    with c3:
+                        hecho = st.checkbox("✅", key=key_check)
+                    
+                    if hecho:
+                        # Timer solo si no ha sonado ya en esta sesión
+                        if f"timer_done_{key_check}" not in st.session_state:
+                            timer_descanso()
+                            st.session_state[f"timer_done_{key_check}"] = True
+                        
+                        if peso and reps:
+                             datos_a_guardar.append([dia, ej, i, peso, reps])
+        
+        st.divider()
+        if st.button("💾 GUARDAR DATOS DE " + USUARIO.upper(), type="primary", use_container_width=True):
+            if datos_a_guardar:
                 fecha = datetime.now().strftime("%Y-%m-%d")
-                filas_a_subir = []
+                # AHORA AGREGAMOS EL USUARIO A LA FILA
+                # Estructura: Fecha, Usuario, Día, Ejercicio, Serie, Peso, Reps
+                filas = [[fecha, USUARIO] + fila for fila in datos_a_guardar]
                 
-                for item in inputs:
-                    # Solo guardamos si se escribieron datos (para ignorar las series vacías)
-                    if item["peso"] and item["reps"]:
-                        p = item["peso"].replace(",", ".")
-                        # Estructura: Fecha, Día, Ejercicio, Serie, Peso, Reps
-                        filas_a_subir.append([fecha, dia, item["ejercicio"], item["serie"], p, item["reps"]])
-                
-                if filas_a_subir:
-                    sheet.append_rows(filas_a_subir)
-                    st.success(f"¡Se han guardado {len(filas_a_subir)} series correctamente!")
-                else:
-                    st.warning("No has anotado ningún dato.")
+                sheet.append_rows(filas)
+                st.balloons()
+                st.success(f"¡Guardado en el perfil de {USUARIO}!")
+            else:
+                st.warning("Marca al menos una serie (✅).")
 
-# --- PESTAÑA 2: GRÁFICOS ---
+# --- PESTAÑA 2: GRÁFICOS (FILTRADOS POR USUARIO) ---
 with tab2:
-    st.header("Tu Evolución")
+    st.header(f"Progreso de {USUARIO}")
     if sheet:
         data = sheet.get_all_records()
         df = pd.DataFrame(data)
         
         if not df.empty:
-            df["Peso"] = pd.to_numeric(df["Peso"], errors='coerce')
-            df["Fecha"] = pd.to_datetime(df["Fecha"])
+            # FILTRO DE SEGURIDAD: Solo mostramos datos del usuario logueado
+            # Asumimos que la columna 'Usuario' existe. Si no, mostramos todo (riesgo al principio)
+            if "Usuario" in df.columns:
+                df = df[df["Usuario"] == USUARIO]
             
-            lista_ejercicios = df["Ejercicio"].unique()
-            ejercicio_sel = st.selectbox("Selecciona ejercicio:", lista_ejercicios)
-            
-            df_chart = df[df["Ejercicio"] == ejercicio_sel]
-            
-            # Gráfico de Peso máximo movido por día
-            st.line_chart(df_chart, x="Fecha", y="Peso")
-            
-            max_peso = df_chart["Peso"].max()
-            st.metric(label=f"Récord Personal (PR)", value=f"{max_peso} Kg")
-            st.dataframe(df_chart[["Fecha", "Serie", "Peso", "Reps"]].sort_values("Fecha", ascending=False))
+            if not df.empty:
+                df["Peso"] = pd.to_numeric(df["Peso"], errors='coerce')
+                df["Fecha"] = pd.to_datetime(df["Fecha"])
+                
+                lista_ejercicios = df["Ejercicio"].unique()
+                ejercicio_sel = st.selectbox("Selecciona ejercicio:", lista_ejercicios)
+                
+                df_chart = df[df["Ejercicio"] == ejercicio_sel]
+                st.line_chart(df_chart, x="Fecha", y="Peso")
+                
+                if not df_chart.empty:
+                    max_peso = df_chart["Peso"].max()
+                    st.metric(label="Tu Récord (PR)", value=f"{max_peso} Kg")
+                    st.dataframe(df_chart[["Fecha", "Serie", "Peso", "Reps"]].sort_values("Fecha", ascending=False))
+            else:
+                st.info(f"No hay registros todavía para el usuario: {USUARIO}")
         else:
-            st.info("Aún no hay datos.")
-
-
-
-
-
-
+            st.info("La base de datos está vacía.")
