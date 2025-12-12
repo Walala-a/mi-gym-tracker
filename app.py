@@ -8,8 +8,6 @@ st.set_page_config(page_title="Gym Tracker Pro", page_icon="💪", layout="wide"
 
 # --- 1. DICCIONARIO DE IMÁGENES Y GIFS ---
 IMAGENES = {
-    # --- 1. DICCIONARIO DE IMÁGENES Y GIFS ---
-IMAGENES = {
     "Fondos": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Chest-Dips.gif",
     "Press Inclinado": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Incline-Barbell-Bench-Press.gif",
     "Pec Deck": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Pec-Deck-Fly.gif",
@@ -140,6 +138,7 @@ with tab2:
             st.dataframe(df_chart[["Fecha", "Serie", "Peso", "Reps"]].sort_values("Fecha", ascending=False))
         else:
             st.info("Aún no hay datos.")
+
 
 
 
