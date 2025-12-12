@@ -10,7 +10,7 @@ st.set_page_config(page_title="Gym Tracker Pro", page_icon="💪", layout="wide"
 # Puedes subir tus fotos a imgur.com y pegar el link directo (que termine en .jpg o .png)
 # --- 1. DICCIONARIO DE IMÁGENES (Nuevos enlaces que sí funcionan) ---
 IMAGENES = {
-    "Press Inclinado": "https://i.imgur.com/8X8X8X8.jpg", # Ejemplo, reemplaza con tu link
+    "Press Inclinado": "https://i.imgur.com/0iNxwYd.jpeg", # Ejemplo, reemplaza con tu link
     "Pec Deck": "https://m.media-amazon.com/images/I/71+p1+-+L._AC_SL1500_.jpg",
     "Dominadas": "https://hips.hearstapps.com/hmg-prod/images/mh-git-pullup-1-1567783665.jpg",
     "Sentadilla": "https://cdn.shopify.com/s/files/1/0052/7043/7978/articles/squat-muscles-worked_1024x1024.jpg",
@@ -114,4 +114,5 @@ with tab2:
             
         else:
             st.info("Aún no hay datos suficientes para graficar.")
+
 
