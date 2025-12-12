@@ -131,4 +131,74 @@ with tab1:
                 if ej in IMAGENES: st.image(IMAGENES[ej], width=150)
                 
                 kc = f"c_{dia}_{ej}"
-                if kc not in st.session_state
+                if kc not in st.session_state: st.session_state[kc] = 1
+                
+                for i in range(1, st.session_state[kc] + 1):
+                    c1,c2,c3 = st.columns([2,2,1])
+                    kb = f"{ej}_{i}"
+                    with c1: p = st.text_input(f"S{i}", key=f"p{kb}", placeholder="Kg", label_visibility="collapsed")
+                    with c2: r = st.text_input(f"S{i}", key=f"r{kb}", placeholder="Reps", label_visibility="collapsed")
+                    with c3:
+                        if st.checkbox("✅", key=f"c{kb}"):
+                            if f"t{kb}" not in st.session_state:
+                                # Usamos el tiempo que definiste arriba
+                                timer(TIEMPO_SET)
+                                st.session_state[f"t{kb}"] = True
+                            if p and r: datos.append([dia, ej, i, p, r])
+                
+                # Botón pequeño para añadir serie
+                if st.button("➕", key=f"add{ej}"):
+                    st.session_state[kc] += 1; st.rerun()
+                    
+        st.divider()
+        if st.button("💾 GUARDAR ENTRENAMIENTO", type="primary", use_container_width=True):
+            if datos:
+                sh = CLIENTE.open("Gym_Data").sheet1
+                rows = [[datetime.now().strftime("%Y-%m-%d"), USUARIO] + d for d in datos]
+                sh.append_rows(rows)
+                st.balloons(); st.success("¡Guardado correctamente!")
+            else: st.warning("No has marcado ninguna serie con ✅")
+
+# 2. PESTAÑA PROGRESO
+with tab2:
+    try:
+        sh = CLIENTE.open("Gym_Data").sheet1
+        df = pd.DataFrame(sh.get_all_records())
+        if not df.empty and "Usuario" in df.columns:
+            df = df[df["Usuario"] == USUARIO]
+            if not df.empty:
+                df["Peso"] = pd.to_numeric(df["Peso"], errors='coerce')
+                df["Fecha"] = pd.to_datetime(df["Fecha"])
+                ej = st.selectbox("Ver ejercicio:", df["Ejercicio"].unique())
+                st.line_chart(df[df["Ejercicio"] == ej], x="Fecha", y="Peso")
+                st.dataframe(df[df["Ejercicio"] == ej].sort_values("Fecha", ascending=False))
+            else: st.info("No hay datos tuyos todavía.")
+    except: st.error("Error leyendo datos.")
+
+# 3. PESTAÑA CONFIGURAR
+with tab3:
+    st.header("⚙️ Configuración")
+    t1, t2 = st.tabs(["Nuevo Ejercicio", "Nueva Rutina"])
+    
+    with t1:
+        with st.form("ne"):
+            n = st.text_input("Nombre Ejercicio"); u = st.text_input("URL Imagen/GIF")
+            if st.form_submit_button("Guardar"):
+                CLIENTE.open("Gym_Data").worksheet("Ejercicios").append_row([n, u])
+                st.success("Guardado. Recarga la app.")
+    
+    with t2:
+        with st.form("nr"):
+            n = st.text_input("Nombre Rutina")
+            # Carga dinámica de ejercicios para elegir
+            try:
+                lista_ejs = CLIENTE.open("Gym_Data").worksheet("Ejercicios").col_values(1)[1:]
+            except: lista_ejs = []
+            
+            ejs = st.multiselect("Selecciona Ejercicios", lista_ejs)
+            
+            if st.form_submit_button("Crear Rutina"):
+                if n and ejs:
+                    CLIENTE.open("Gym_Data").worksheet("Rutinas_Config").append_rows([[n, e] for e in ejs])
+                    st.success("Rutina Creada. Recarga la app.")
+                else: st.error("Faltan datos")
