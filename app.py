@@ -1,151 +1,96 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import os
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
-st.set_page_config(page_title="Gym Tracker", page_icon="💪")
+st.set_page_config(page_title="Gym Tracker Pro", page_icon="💪")
 
-# --- DEFINICIÓN DE LA RUTINA ---
+# --- CONEXIÓN CON GOOGLE SHEETS ---
+# Esta función conecta con la nube de forma segura
+def conectar_google_sheet():
+    # Definimos el alcance de los permisos
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    
+    # Intentamos leer las credenciales desde los "Secretos" de Streamlit (para la nube)
+    # O desde el archivo local si estás en tu PC
+    try:
+        if "gcp_service_account" in st.secrets:
+            creds_dict = st.secrets["gcp_service_account"]
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        else:
+            # SI ESTÁS EN TU PC: Asegúrate de que tu archivo descargado se llame 'credenciales.json'
+            creds = ServiceAccountCredentials.from_json_keyfile_name("credenciales.json", scope)
+            
+        client = gspread.authorize(creds)
+        # AQUÍ PON EL NOMBRE EXACTO DE TU HOJA DE GOOGLE SHEETS
+        sheet = client.open("Gym_Data").sheet1 
+        return sheet
+    except Exception as e:
+        st.error(f"Error conectando a Google Sheets: {e}")
+        return None
+
+# --- TU RUTINA (Igual que antes) ---
 rutina = {
-    "Día 1: Pecho-Hombro-Tríceps": [
-        "Fondos (Calentamiento)",
-        "Press Banca Inclinado (Barra)",
-        "Pec Deck (Mariposa)",
-        "Máquina de Pecho",
-        "Elevaciones Laterales",
-        "Máquina Press Militar",
-        "Tríceps Polea (Ejercicio 1)",
-        "Tríceps Polea (Ejercicio 2)"
-    ],
-    "Día 2: Espalda-Bíceps": [
-        "Dominadas (Calentamiento)",
-        "Remo con Barra (Pesado)",
-        "Jalón al Pecho",
-        "Máquina de Remo (Agarre Abierto)",
-        "Hombro Posterior (Polea/Facepull)",
-        "Curl Bayesiano",
-        "Curl Araña",
-        "Curl Martillo"
-    ],
-    "Día 3: Pierna": [
-        "Extensión Cuádriceps (Calentamiento)",
-        "Sentadilla (Máquina o Libre)",
-        "Hip Thrust",
-        "Peso Muerto Rumano",
-        "Pantorrillas con Mancuerna",
-        "Máquina Femoral",
-        "Abductores"
-    ],
-    "Día 5: Pecho-Espalda (Torso)": [
-        "Press Banca Inclinado (Barra)",
-        "Press Banca Normal (Barra)",
-        "Remo con Barra",
-        "Jalón al Pecho",
-        "Pec Deck",
-        "Fondos con Peso",
-        "Remo en Máquina",
-        "Jalón Dorsal Unilateral"
-    ],
-    "Día 6: Brazos": [
-        "Elevaciones Laterales",
-        "Press Militar",
-        "Hombro Posterior (Coso de atrás)",
-        "Press Rompecráneos",
-        "Tríceps Polea 1",
-        "Tríceps Polea 2",
-        "Bíceps Araña",
-        "Bíceps Bayesiano",
-        "Bíceps Martillo"
-    ]
+    "Día 1: Pecho-Hombro-Tríceps": ["Fondos", "Press Inclinado", "Pec Deck", "Elevaciones Laterales", "Press Militar", "Tríceps Polea"],
+    "Día 2: Espalda-Bíceps": ["Dominadas", "Remo Barra", "Jalón Pecho", "Face Pull", "Curl Bayesiano", "Curl Martillo"],
+    "Día 3: Pierna": ["Sentadilla", "Hip Thrust", "Peso Muerto Rumano", "Pantorrillas", "Femoral", "Abductores"],
+    "Día 5: Torso": ["Press Inclinado", "Press Banca", "Remo Barra", "Jalón Pecho", "Fondos Lastre"],
+    "Día 6: Brazos": ["Elevaciones Laterales", "Press Militar", "Press Francés", "Tríceps Polea", "Curl Araña", "Curl Martillo"]
 }
 
-# --- ARCHIVO DE GUARDADO ---
-FILE_NAME = "mi_progreso_gym.csv"
+st.title("☁️ Gym Tracker (Nube)")
 
-# --- TÍTULO ---
-st.title("🏋️‍♂️ Mi Gym Tracker")
-st.write("Registra tus pesos y rompe tus límites.")
+# --- CARGAR DATOS EXISTENTES ---
+sheet = conectar_google_sheet()
 
-# --- SELECCIÓN DE DÍA ---
-dia_seleccionado = st.selectbox("¿Qué toca entrenar hoy?", list(rutina.keys()))
+if sheet:
+    # Leemos los datos para mostrar el historial
+    data = sheet.get_all_records()
+    df = pd.DataFrame(data)
+else:
+    df = pd.DataFrame()
+    st.warning("⚠️ No se pudo conectar. Revisa tus credenciales.")
 
-# --- FORMULARIO DE ENTRADA ---
-st.subheader(f"Rutina: {dia_seleccionado}")
+# --- SELECCIÓN ---
+dia_seleccionado = st.selectbox("Rutina de hoy:", list(rutina.keys()))
 
-datos_dia = []
-
-# Creamos un formulario para que no se recargue la página con cada click
+# --- FORMULARIO ---
 with st.form("entry_form"):
-    col1, col2, col3 = st.columns([3, 1, 1])
-    col1.write("**Ejercicio**")
-    col2.write("**Peso (kg)**")
-    col3.write("**Reps**")
+    st.subheader(f"Entrenando: {dia_seleccionado}")
+    inputs = {}
     
-    inputs = {} # Diccionario para guardar los inputs temporalmente
-
+    # Creamos los campos
     for ejercicio in rutina[dia_seleccionado]:
         st.markdown(f"**{ejercicio}**")
-        # Generamos 3 series por defecto para llenar
-        for i in range(1, 4):
-            c1, c2 = st.columns([3, 1])
-            with c1:
-                peso = st.text_input(f"Peso Serie {i}", key=f"{ejercicio}_w_{i}", placeholder="Ej: 20")
-            with c2:
-                reps = st.text_input(f"Reps Serie {i}", key=f"{ejercicio}_r_{i}", placeholder="Ej: 12")
-            
-            inputs[f"{ejercicio}_s{i}"] = (peso, reps)
+        c1, c2 = st.columns(2)
+        peso = c1.text_input("Kg", key=f"{ejercicio}_k")
+        reps = c2.text_input("Reps", key=f"{ejercicio}_r")
+        inputs[ejercicio] = (peso, reps)
         st.divider()
 
-    # Botón de envío
-    submitted = st.form_submit_button("💾 Guardar Entrenamiento")
+    submitted = st.form_submit_button("Subir a la Nube 🚀")
 
-    if submitted:
-        fecha_hoy = datetime.now().strftime("%Y-%m-%d")
-        nuevos_datos = []
+    if submitted and sheet:
+        fecha = datetime.now().strftime("%Y-%m-%d")
+        filas_a_insertar = []
         
-        for ejercicio in rutina[dia_seleccionado]:
-            for i in range(1, 4):
-                peso, reps = inputs[f"{ejercicio}_s{i}"]
-                if peso and reps: # Solo guardamos si escribiste algo
-                    nuevos_datos.append({
-                        "Fecha": fecha_hoy,
-                        "Día": dia_seleccionado,
-                        "Ejercicio": ejercicio,
-                        "Serie": i,
-                        "Peso": peso,
-                        "Reps": reps
-                    })
+        for ejercicio, (peso, reps) in inputs.items():
+            if peso and reps: # Solo si escribiste algo
+                # Estructura: Fecha, Día, Ejercicio, Serie(Puse 1 por simplificar), Peso, Reps
+                filas_a_insertar.append([fecha, dia_seleccionado, ejercicio, "Serie Única", peso, reps])
         
-        if nuevos_datos:
-            df_nuevo = pd.DataFrame(nuevos_datos)
-            
-            # Cargar archivo existente o crear uno nuevo
-            if os.path.exists(FILE_NAME):
-                df_antiguo = pd.read_csv(FILE_NAME)
-                df_final = pd.concat([df_antiguo, df_nuevo], ignore_index=True)
-            else:
-                df_final = df_nuevo
-            
-            df_final.to_csv(FILE_NAME, index=False)
-            st.success("✅ ¡Entrenamiento guardado con éxito!")
+        if filas_a_insertar:
+            # Enviamos todo de golpe a Google Sheets
+            sheet.append_rows(filas_a_insertar)
+            st.success("✅ ¡Guardado en Google Sheets!")
+            st.rerun() # Recarga la página para ver los datos nuevos
         else:
-            st.warning("⚠️ No has anotado ningún dato.")
+            st.warning("Escribe al menos un peso/rep.")
 
-# --- VISUALIZAR PROGRESO ---
-st.header("📈 Historial Reciente")
-if os.path.exists(FILE_NAME):
-    df = pd.read_csv(FILE_NAME)
-    # Mostramos los últimos registros primero
-    st.dataframe(df.tail(10).sort_index(ascending=False), use_container_width=True)
-    
-    # Botón para descargar tu Excel
-    with open(FILE_NAME, "rb") as file:
-        st.download_button(
-            label="📥 Descargar todo mi historial (CSV)",
-            data=file,
-            file_name="historial_gym.csv",
-            mime="text/csv"
-        )
-else:
-    st.info("Aún no hay registros. ¡A entrenar!")
+# --- HISTORIAL ---
+st.divider()
+st.subheader("📊 Tu Progreso Global")
+if not df.empty:
+    st.dataframe(df.tail(10)) # Muestra los últimos 10
