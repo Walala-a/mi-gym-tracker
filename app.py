@@ -8,30 +8,31 @@ st.set_page_config(page_title="Gym Tracker Pro", page_icon="💪", layout="wide"
 
 # --- 1. DICCIONARIO DE IMÁGENES Y GIFS ---
 IMAGENES = {
-    "Fondos": "https://www.lyfta.app/_next/image?url=https%3A%2F%2Flyfta.app%2Fimages%2Fexercises%2F00091101.png&w=3840&q=75",
-    "Press Inclinado": "https://www.lyfta.app/thumbnails/12991201.jpg",
+    # --- 1. DICCIONARIO DE IMÁGENES Y GIFS ---
+IMAGENES = {
+    "Fondos": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Chest-Dips.gif",
+    "Press Inclinado": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Incline-Barbell-Bench-Press.gif",
     "Pec Deck": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Pec-Deck-Fly.gif",
-    "Elevaciones Laterales": "https://fitcron.com/wp-content/uploads/2021/04/03111301-Dumbbell-Full-Can-Lateral-Raise_Shoulders_720.gif",
-    "Press Militar": "https://i.pinimg.com/originals/67/b8/5a/67b85add1691a2620c3101b49a021899.gif",
-    "Tríceps Polea": "https://treinototal.com.br/wp-content/uploads/2023/06/triceps-corda.gif",
-    "Remo Barra": "https://fitcron.com/wp-content/uploads/2021/04/01181301-Barbell-Reverse-Grip-Bent-over-Row_Back-FIX_720.gif",
-    "Jalón Pecho": "https://vitruve.fit/wp-content/uploads/2021/11/vitruvs.gif",
+    "Elevaciones Laterales": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Dumbbell-Lateral-Raise.gif",
+    "Press Militar": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Military-Press.gif",
+    "Tríceps Polea": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Push-Down.gif",
+    "Dominadas": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Pull-up.gif",
+    "Remo Barra": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Bent-Over-Row.gif",
+    "Jalón Pecho": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Lat-Pulldown.gif",
     "Face Pull": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Face-Pull.gif",
-    "Curl Bayesiano": "https://cdn.shopify.com/s/files/1/0052/7043/7978/articles/squat-muscles-worked_1024x1024.jpg",
-    "Curl Martillo": "https://media.giphy.com/media/eFxpNpVp4b55iWfgAS/giphy.gif",
-    "Hip Thrust": "https://cdn.shopify.com/s/files/1/0052/7043/7978/articles/squat-muscles-worked_1024x1024.jpg",
-    "Peso Muerto Rumano": "https://media.giphy.com/media/eFxpNpVp4b55iWfgAS/giphy.gif",
-    "Elevacion de Pantorrillas": "https://cdn.shopify.com/s/files/1/0052/7043/7978/articles/squat-muscles-worked_1024x1024.jpg",
-    "Curl femoral sentado": "https://media.giphy.com/media/eFxpNpVp4b55iWfgAS/giphy.gif",
-    "Abductores en maquina": "https://cdn.shopify.com/s/files/1/0052/7043/7978/articles/squat-muscles-worked_1024x1024.jpg",
-    "Remo Barra": "https://media.giphy.com/media/eFxpNpVp4b55iWfgAS/giphy.gif",
-    "Jalón Pecho": "https://cdn.shopify.com/s/files/1/0052/7043/7978/articles/squat-muscles-worked_1024x1024.jpg",
-    "Fondos Lastre": "https://media.giphy.com/media/eFxpNpVp4b55iWfgAS/giphy.gif",
-    "Press Militar": "https://cdn.shopify.com/s/files/1/0052/7043/7978/articles/squat-muscles-worked_1024x1024.jpg",
-    "Press Francés": "https://media.giphy.com/media/eFxpNpVp4b55iWfgAS/giphy.gif",
-    "Tríceps Polea": "https://cdn.shopify.com/s/files/1/0052/7043/7978/articles/squat-muscles-worked_1024x1024.jpg",
-    "Curl Araña": "https://media.giphy.com/media/eFxpNpVp4b55iWfgAS/giphy.gif",
-    "Curl Martillo": "https://cdn.shopify.com/s/files/1/0052/7043/7978/articles/squat-muscles-worked_1024x1024.jpg",
+    "Curl Bayesiano": "https://i.pinimg.com/originals/ce/0f/36/ce0f365d9539260195d8527a2068bf86.gif", # Referencia visual más cercana (Cable Curl espalda)
+    "Curl Martillo": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Hammer-Curl.gif",
+    "Sentadilla": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Squat.gif",
+    "Hip Thrust": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Hip-Thrust.gif",
+    "Peso Muerto Rumano": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Romanian-Deadlift.gif",
+    "Elevacion de Pantorrillas": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Dumbbell-Calf-Raise.gif",
+    "Curl femoral sentado": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Seated-Leg-Curl.gif",
+    "Abductores en maquina": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Seated-Hip-Abduction.gif",
+    "Press Banca": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Bench-Press.gif",
+    "Fondos Lastre": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Chest-Dips.gif", # Misma técnica que fondos
+    "Press Francés": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Triceps-Extension.gif",
+    "Curl Araña": "https://d205bpvrqc9yn1.cloudfront.net/0309.gif", # Spider Curl con mancuernas
+}
     
     
 }
@@ -139,6 +140,7 @@ with tab2:
             st.dataframe(df_chart[["Fecha", "Serie", "Peso", "Reps"]].sort_values("Fecha", ascending=False))
         else:
             st.info("Aún no hay datos.")
+
 
 
 
