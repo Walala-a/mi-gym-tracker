@@ -124,4 +124,10 @@ with tab1:
         datos = []
         
         for ej in RUTINAS[dia]:
-            with st.expander(f"**{ej}**", expanded=True):
+            # ESTA ES LA LÍNEA QUE TIENES QUE CORREGIR:
+            with st.expander(f"**{ej}**", expanded=True): 
+                
+                if ej in IMAGENES: st.image(IMAGENES[ej], width=150)
+                
+                kc = f"c_{dia}_{ej}"
+
