@@ -6,19 +6,27 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 st.set_page_config(page_title="Gym Tracker", page_icon="💪")
 
-# CONEXIÓN GOOGLE SHEETS
+# --- CONEXIÓN INTELIGENTE (PC O NUBE) ---
 def conectar_google_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    
     try:
-        creds = ServiceAccountCredentials.from_json_keyfile_name("credenciales.json", scope)
+        # 1. Intentamos leer de los SECRETOS de la nube
+        if "gcp_service_account" in st.secrets:
+            creds_dict = st.secrets["gcp_service_account"]
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        # 2. Si no hay secretos, buscamos el archivo local (Tu PC)
+        else:
+            creds = ServiceAccountCredentials.from_json_keyfile_name("credenciales.json", scope)
+            
         client = gspread.authorize(creds)
         sheet = client.open("Gym_Data").sheet1 
         return sheet
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"Error de conexión: {e}")
         return None
 
-# RUTINA
+# --- RUTINA ---
 rutina = {
     "Día 1: Pecho-Hombro-Tríceps": ["Fondos", "Press Inclinado", "Pec Deck", "Elevaciones Lat", "Press Militar", "Tríceps Polea"],
     "Día 2: Espalda-Bicep": ["Dominadas", "Remo Barra", "Jalón Pecho", "Face Pull", "Curl Bayesiano", "Curl Martillo"],
@@ -36,13 +44,14 @@ if sheet:
     
     with st.form("gym_form"):
         inputs = {}
+        st.subheader(f"Entrenando: {dia}")
         for ej in rutina[dia]:
             st.write(f"**{ej}**")
             c1, c2 = st.columns(2)
             inputs[ej] = (c1.text_input("Kg", key=f"{ej}k"), c2.text_input("Reps", key=f"{ej}r"))
             st.divider()
         
-        if st.form_submit_button("Guardar"):
+        if st.form_submit_button("Guardar en Google Sheets 🚀"):
             fecha = datetime.now().strftime("%Y-%m-%d")
             data = []
             for ej, (k, r) in inputs.items():
@@ -50,6 +59,6 @@ if sheet:
                     data.append([fecha, dia, ej, k, r])
             if data:
                 sheet.append_rows(data)
-                st.success("¡Guardado!")
+                st.success("¡Datos guardados!")
             else:
-                st.warning("Escribe algo primero.")
+                st.warning("Escribe al menos un peso/rep.")
