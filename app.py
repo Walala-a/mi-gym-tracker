@@ -125,4 +125,3 @@ with tab1:
         
         for ej in RUTINAS[dia]:
             with st.expander(f"**{ej}**", expanded=True):
-
