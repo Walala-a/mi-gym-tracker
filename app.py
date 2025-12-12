@@ -31,10 +31,6 @@ IMAGENES = {
     "Press Francés": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Triceps-Extension.gif",
     "Curl Araña": "https://d205bpvrqc9yn1.cloudfront.net/0309.gif", # Spider Curl con mancuernas
 }
-    
-    
-}
-
 # --- 2. CONEXIÓN INTELIGENTE (PC O NUBE) ---
 def conectar_google_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -138,6 +134,7 @@ with tab2:
             st.dataframe(df_chart[["Fecha", "Serie", "Peso", "Reps"]].sort_values("Fecha", ascending=False))
         else:
             st.info("Aún no hay datos.")
+
 
 
 
