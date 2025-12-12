@@ -124,4 +124,5 @@ with tab1:
         datos = []
         
         for ej in RUTINAS[dia]:
-            with st.expander(f"**{ej}**
+            with st.expander(f"**{ej}**", expanded=True):
+
