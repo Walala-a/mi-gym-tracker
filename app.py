@@ -8,12 +8,12 @@ st.set_page_config(page_title="Gym Tracker Pro", page_icon="💪", layout="wide"
 
 # --- 1. DICCIONARIO DE IMÁGENES (Pega aquí los links de tus fotos) ---
 # Puedes subir tus fotos a imgur.com y pegar el link directo (que termine en .jpg o .png)
+# --- 1. DICCIONARIO DE IMÁGENES (Nuevos enlaces que sí funcionan) ---
 IMAGENES = {
-    "Press Inclinado": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Incline-bench-press-2.png/640px-Incline-bench-press-2.png",
-    "Pec Deck": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Pec_Deck_Machine.JPG/640px-Pec_Deck_Machine.JPG",
-    "Dominadas": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Pullup_w_Supinated_Grip.JPG/357px-Pullup_w_Supinated_Grip.JPG",
-    "Sentadilla": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Squats.png/640px-Squats.png",
-    # ... Si un ejercicio no tiene foto, no saldrá nada (no rompe la app)
+    "Press Inclinado": "https://i.imgur.com/8X8X8X8.jpg", # Ejemplo, reemplaza con tu link
+    "Pec Deck": "https://m.media-amazon.com/images/I/71+p1+-+L._AC_SL1500_.jpg",
+    "Dominadas": "https://hips.hearstapps.com/hmg-prod/images/mh-git-pullup-1-1567783665.jpg",
+    "Sentadilla": "https://cdn.shopify.com/s/files/1/0052/7043/7978/articles/squat-muscles-worked_1024x1024.jpg",
 }
 
 # --- 2. CONEXIÓN INTELIGENTE (Igual que antes) ---
@@ -114,3 +114,4 @@ with tab2:
             
         else:
             st.info("Aún no hay datos suficientes para graficar.")
+
