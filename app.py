@@ -6,50 +6,115 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 # --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="Gym Tracker Multi-User", page_icon="🏋️", layout="wide")
+st.set_page_config(page_title="Gym Tracker Pro", page_icon="🏋️", layout="wide")
 
-# --- 1. SISTEMA DE LOGIN MULTI-USUARIO ---
-def login():
-    """Maneja el inicio de sesión y retorna el usuario si es exitoso"""
+# --- 1. CONEXIÓN GOOGLE SHEETS (MEJORADA) ---
+def get_google_sheet_client():
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    try:
+        if "gcp_service_account" in st.secrets:
+            creds_dict = st.secrets["gcp_service_account"]
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        else:
+            creds = ServiceAccountCredentials.from_json_keyfile_name("credenciales.json", scope)
+        return gspread.authorize(creds)
+    except Exception as e:
+        st.error(f"Error de conexión: {e}")
+        return None
+
+# --- 2. GESTIÓN DE USUARIOS (LOGIN Y REGISTRO) ---
+def gestion_usuarios():
+    """Maneja el Login y el Registro usando Google Sheets"""
     if "usuario_actual" not in st.session_state:
         st.session_state.usuario_actual = None
 
-    # Si ya está logueado, retornamos True
     if st.session_state.usuario_actual:
-        return True
+        return True # Ya está logueado
 
-    st.markdown("<h1 style='text-align: center;'>🔒 Gym Tracker Login</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>🔒 Gym Tracker</h1>", unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns([1,2,1])
-    with col2:
+    # Conectamos para buscar usuarios
+    client = get_google_sheet_client()
+    if not client:
+        return False
+
+    try:
+        # Abrimos la hoja de usuarios
+        hoja_usuarios = client.open("Gym_Data").worksheet("Usuarios")
+    except:
+        st.error("⚠️ No encuentro la pestaña 'Usuarios' en tu Google Sheet. Por favor créala.")
+        return False
+
+    # Pestañas de Login / Crear Cuenta
+    tab_login, tab_registro = st.tabs(["Iniciar Sesión", "Crear Cuenta Nueva"])
+
+    # --- LOGIN ---
+    with tab_login:
         with st.form("login_form"):
             user = st.text_input("Usuario")
             password = st.text_input("Contraseña", type="password")
-            submit = st.form_submit_button("Entrar 🚀", use_container_width=True)
+            submit = st.form_submit_button("Entrar ➡️", use_container_width=True)
 
             if submit:
-                # Buscamos en los secretos la sección [usuarios]
-                usuarios_validos = st.secrets.get("usuarios", {})
-                
-                # Verificamos si usuario existe y la contraseña coincide
-                if user in usuarios_validos and usuarios_validos[user] == password:
-                    st.session_state.usuario_actual = user
-                    st.success(f"¡Bienvenido, {user}!")
-                    time.sleep(1)
-                    st.rerun()
+                try:
+                    # Descargamos todos los usuarios
+                    registros = hoja_usuarios.get_all_records()
+                    # Buscamos coincidencia
+                    usuario_encontrado = False
+                    for registro in registros:
+                        # Convertimos a string por si acaso Google Sheets lo detecta como número
+                        if str(registro["Usuario"]) == user and str(registro["Password"]) == password:
+                            st.session_state.usuario_actual = user
+                            usuario_encontrado = True
+                            break
+                    
+                    if usuario_encontrado:
+                        st.success(f"¡Hola de nuevo, {user}!")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error("Usuario o contraseña incorrectos.")
+                except Exception as e:
+                    st.error(f"Error al leer usuarios: {e}")
+
+    # --- REGISTRO ---
+    with tab_registro:
+        st.warning("⚠️ Recuerda tu contraseña, no se puede recuperar.")
+        with st.form("register_form"):
+            new_user = st.text_input("Elige un Usuario")
+            new_pass = st.text_input("Elige una Contraseña", type="password")
+            new_pass_confirm = st.text_input("Repite la Contraseña", type="password")
+            submit_reg = st.form_submit_button("Crear Usuario 🆕", use_container_width=True)
+
+            if submit_reg:
+                if new_pass != new_pass_confirm:
+                    st.error("Las contraseñas no coinciden.")
+                elif len(new_user) < 3:
+                    st.error("El usuario debe tener al menos 3 letras.")
                 else:
-                    st.error("Usuario o contraseña incorrectos.")
-    
+                    # Comprobar si ya existe
+                    registros = hoja_usuarios.get_all_records()
+                    nombres_existentes = [str(r["Usuario"]) for r in registros]
+                    
+                    if new_user in nombres_existentes:
+                        st.error("¡Ese usuario ya existe! Elige otro.")
+                    else:
+                        # Guardar en Google Sheets
+                        hoja_usuarios.append_row([new_user, new_pass])
+                        st.success("¡Cuenta creada! Ahora puedes iniciar sesión.")
+
     return False
 
-# Si no está logueado, detenemos la app aquí
-if not login():
+# Si no está logueado, detenemos la app
+if not gestion_usuarios():
     st.stop()
 
-# --- USUARIO ACTUAL ---
+# --- USUARIO LOGUEADO ---
 USUARIO = st.session_state.usuario_actual
+client = get_google_sheet_client()
+sheet_datos = client.open("Gym_Data").sheet1 # La hoja donde guardamos los entrenos
 
-# --- 2. DICCIONARIO DE IMÁGENES Y GIFS ---
+# --- 3. DICCIONARIO DE IMÁGENES ---
 IMAGENES = {
     "Fondos": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Chest-Dips.gif",
     "Press Inclinado": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Incline-Barbell-Bench-Press.gif",
@@ -75,42 +140,20 @@ IMAGENES = {
     "Curl Araña": "https://d205bpvrqc9yn1.cloudfront.net/0309.gif",
 }
 
-# --- 3. CONEXIÓN GOOGLE SHEETS ---
-def conectar_google_sheet():
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    try:
-        if "gcp_service_account" in st.secrets:
-            creds_dict = st.secrets["gcp_service_account"]
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        else:
-            creds = ServiceAccountCredentials.from_json_keyfile_name("credenciales.json", scope)
-        client = gspread.authorize(creds)
-        sheet = client.open("Gym_Data").sheet1 
-        return sheet
-    except Exception as e:
-        st.error(f"Error conectando a la nube: {e}")
-        return None
-
-# --- 4. FUNCIÓN DEL TEMPORIZADOR ---
+# --- 4. TIMER Y LÓGICA ---
 def timer_descanso():
-    """Muestra una cuenta atrás y reproduce sonido"""
     placeholder = st.empty()
     progress_bar = st.progress(0)
-    tiempo_descanso = 60
-    
-    for i in range(tiempo_descanso, -1, -1):
-        porcentaje = (tiempo_descanso - i) / tiempo_descanso
-        progress_bar.progress(porcentaje)
+    for i in range(60, -1, -1):
+        progress_bar.progress((60 - i) / 60)
         placeholder.markdown(f"### ⏳ Descanso: {i}s")
         time.sleep(1)
-    
-    placeholder.markdown("### 🔔 ¡A DARLE CAÑA!")
+    placeholder.markdown("### 🔔 ¡DALE!")
     st.audio("https://cdn.pixabay.com/audio/2022/03/15/audio_243469c434.mp3", autoplay=True)
-    time.sleep(3)
+    time.sleep(2)
     placeholder.empty()
     progress_bar.empty()
 
-# --- RUTINA ---
 rutina = {
     "Día 1: Pecho-Hombro-Tríceps": ["Fondos", "Press Inclinado", "Pec Deck", "Elevaciones Laterales", "Press Militar", "Tríceps Polea"],
     "Día 2: Espalda-Bicep": ["Dominadas", "Remo Barra", "Jalón Pecho", "Face Pull", "Curl Bayesiano", "Curl Martillo"],
@@ -119,98 +162,75 @@ rutina = {
     "Día 6: Brazos": ["Elevaciones Laterales", "Press Militar", "Press Francés", "Tríceps Polea", "Curl Araña", "Curl Martillo"]
 }
 
-# --- APP PRINCIPAL ---
+# --- INTERFAZ PRINCIPAL ---
 st.title(f"💪 Hola, {USUARIO}")
-sheet = conectar_google_sheet()
 
-# Sidebar para Logout
 if st.sidebar.button("Cerrar Sesión"):
     st.session_state.usuario_actual = None
     st.rerun()
 
 tab1, tab2 = st.tabs(["🏋️ Entrenar", "📈 Mi Progreso"])
 
-# --- PESTAÑA 1: ENTRENAMIENTO ---
 with tab1:
-    if sheet:
-        dia = st.selectbox("Elige tu rutina de hoy:", list(rutina.keys()))
-        st.divider()
-        
-        datos_a_guardar = []
-        
-        for ej in rutina[dia]:
-            with st.expander(f"**{ej}**", expanded=True):
-                if ej in IMAGENES:
-                    c_img, c_txt = st.columns([1, 2])
-                    c_img.image(IMAGENES[ej], use_container_width=True)
-                    c_txt.caption("Técnica controlada")
+    dia = st.selectbox("Elige tu rutina de hoy:", list(rutina.keys()))
+    st.divider()
+    
+    datos_a_guardar = []
+    
+    for ej in rutina[dia]:
+        with st.expander(f"**{ej}**", expanded=True):
+            if ej in IMAGENES:
+                st.image(IMAGENES[ej], width=150)
+            
+            st.markdown("---")
+            for i in range(1, 5):
+                c1, c2, c3 = st.columns([2, 2, 1])
+                key_base = f"{ej}_s{i}"
                 
-                st.markdown("---")
-                for i in range(1, 5):
-                    c1, c2, c3 = st.columns([2, 2, 1])
-                    
-                    key_peso = f"{ej}_s{i}_peso"
-                    key_reps = f"{ej}_s{i}_reps"
-                    key_check = f"{ej}_s{i}_check"
-                    
-                    with c1:
-                        peso = st.text_input(f"Peso S{i}", key=key_peso, placeholder="Kg", label_visibility="collapsed")
-                    with c2:
-                        reps = st.text_input(f"Reps S{i}", key=key_reps, placeholder="Reps", label_visibility="collapsed")
-                    with c3:
-                        hecho = st.checkbox("✅", key=key_check)
-                    
-                    if hecho:
-                        # Timer solo si no ha sonado ya en esta sesión
-                        if f"timer_done_{key_check}" not in st.session_state:
+                with c1:
+                    peso = st.text_input(f"S{i}", key=f"{key_base}_p", placeholder="Kg", label_visibility="collapsed")
+                with c2:
+                    reps = st.text_input(f"S{i}", key=f"{key_base}_r", placeholder="Reps", label_visibility="collapsed")
+                with c3:
+                    if st.checkbox("✅", key=f"{key_base}_c"):
+                        if f"t_{key_base}" not in st.session_state:
                             timer_descanso()
-                            st.session_state[f"timer_done_{key_check}"] = True
-                        
+                            st.session_state[f"t_{key_base}"] = True
                         if peso and reps:
                              datos_a_guardar.append([dia, ej, i, peso, reps])
-        
-        st.divider()
-        if st.button("💾 GUARDAR DATOS DE " + USUARIO.upper(), type="primary", use_container_width=True):
-            if datos_a_guardar:
-                fecha = datetime.now().strftime("%Y-%m-%d")
-                # AHORA AGREGAMOS EL USUARIO A LA FILA
-                # Estructura: Fecha, Usuario, Día, Ejercicio, Serie, Peso, Reps
-                filas = [[fecha, USUARIO] + fila for fila in datos_a_guardar]
-                
-                sheet.append_rows(filas)
-                st.balloons()
-                st.success(f"¡Guardado en el perfil de {USUARIO}!")
-            else:
-                st.warning("Marca al menos una serie (✅).")
+    
+    st.divider()
+    if st.button(f"💾 GUARDAR ENTRENAMIENTO DE {USUARIO.upper()}", type="primary", use_container_width=True):
+        if datos_a_guardar:
+            fecha = datetime.now().strftime("%Y-%m-%d")
+            # Agregamos USUARIO a la fila
+            filas = [[fecha, USUARIO] + f for f in datos_a_guardar]
+            sheet_datos.append_rows(filas)
+            st.balloons()
+            st.success("¡Datos guardados!")
+        else:
+            st.warning("No hay series marcadas.")
 
-# --- PESTAÑA 2: GRÁFICOS (FILTRADOS POR USUARIO) ---
 with tab2:
     st.header(f"Progreso de {USUARIO}")
-    if sheet:
-        data = sheet.get_all_records()
-        df = pd.DataFrame(data)
+    data = sheet_datos.get_all_records()
+    df = pd.DataFrame(data)
+    
+    if not df.empty and "Usuario" in df.columns:
+        # FILTRO IMPORTANTE: SOLO DATOS DEL USUARIO
+        df = df[df["Usuario"] == USUARIO]
         
         if not df.empty:
-            # FILTRO DE SEGURIDAD: Solo mostramos datos del usuario logueado
-            # Asumimos que la columna 'Usuario' existe. Si no, mostramos todo (riesgo al principio)
-            if "Usuario" in df.columns:
-                df = df[df["Usuario"] == USUARIO]
+            df["Peso"] = pd.to_numeric(df["Peso"], errors='coerce')
+            df["Fecha"] = pd.to_datetime(df["Fecha"])
             
-            if not df.empty:
-                df["Peso"] = pd.to_numeric(df["Peso"], errors='coerce')
-                df["Fecha"] = pd.to_datetime(df["Fecha"])
-                
-                lista_ejercicios = df["Ejercicio"].unique()
-                ejercicio_sel = st.selectbox("Selecciona ejercicio:", lista_ejercicios)
-                
-                df_chart = df[df["Ejercicio"] == ejercicio_sel]
-                st.line_chart(df_chart, x="Fecha", y="Peso")
-                
-                if not df_chart.empty:
-                    max_peso = df_chart["Peso"].max()
-                    st.metric(label="Tu Récord (PR)", value=f"{max_peso} Kg")
-                    st.dataframe(df_chart[["Fecha", "Serie", "Peso", "Reps"]].sort_values("Fecha", ascending=False))
-            else:
-                st.info(f"No hay registros todavía para el usuario: {USUARIO}")
+            ejercicio = st.selectbox("Ver ejercicio:", df["Ejercicio"].unique())
+            df_chart = df[df["Ejercicio"] == ejercicio]
+            
+            st.line_chart(df_chart, x="Fecha", y="Peso")
+            st.metric("Récord Personal", f"{df_chart['Peso'].max()} Kg")
+            st.dataframe(df_chart.sort_values("Fecha", ascending=False))
         else:
-            st.info("La base de datos está vacía.")
+            st.info("No tienes datos registrados aún.")
+    else:
+        st.info("Base de datos vacía o sin formato de usuarios.")
