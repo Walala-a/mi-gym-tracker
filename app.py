@@ -5,188 +5,204 @@ import time
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# --- CONFIGURACIÓN DE PÁGINA ---
+# --- CONFIGURACIÓN ---
 st.set_page_config(page_title="Gym Tracker Pro", page_icon="🏋️", layout="wide")
 
-# --- 1. CONEXIÓN GOOGLE SHEETS ---
-def get_google_sheet_client():
+# --- CONEXIÓN ---
+def get_client():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     try:
         if "gcp_service_account" in st.secrets:
-            creds_dict = st.secrets["gcp_service_account"]
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
         else:
             creds = ServiceAccountCredentials.from_json_keyfile_name("credenciales.json", scope)
         return gspread.authorize(creds)
     except Exception as e:
-        st.error(f"Error de conexión: {e}")
+        st.error(f"Error conexión: {e}")
         return None
 
-# --- 2. GESTIÓN DE USUARIOS ---
-def gestion_usuarios():
-    if "usuario_actual" not in st.session_state:
-        st.session_state.usuario_actual = None
-
-    if st.session_state.usuario_actual:
-        return True
-
-    st.markdown("<h1 style='text-align: center;'>🔒 Gym Tracker</h1>", unsafe_allow_html=True)
+# --- CARGA DE DATOS DINÁMICOS ---
+def cargar_datos_config():
+    client = get_client()
+    if not client: return {}, {}
     
-    client = get_google_sheet_client()
-    if not client: return False
-
     try:
-        hoja_usuarios = client.open("Gym_Data").worksheet("Usuarios")
+        sh = client.open("Gym_Data")
+        
+        # 1. Cargar Imágenes
+        ws_ej = sh.worksheet("Ejercicios")
+        lista_ej = ws_ej.get_all_records()
+        imagenes = {d["Nombre"]: d["URL_Imagen"] for d in lista_ej if d["URL_Imagen"]}
+        
+        # 2. Cargar Rutinas
+        ws_rut = sh.worksheet("Rutinas_Config")
+        lista_rut = ws_rut.get_all_records()
+        rutinas = {}
+        for r in lista_rut:
+            nombre = r["Rutina"]
+            ejercicio = r["Ejercicio"]
+            if nombre not in rutinas: rutinas[nombre] = []
+            rutinas[nombre].append(ejercicio)
+            
+        return imagenes, rutinas, client
+    except Exception as e:
+        st.error(f"Faltan pestañas en Google Sheets: {e}")
+        return {}, {}, client
+
+# --- LOGIN ---
+def login():
+    if "user" in st.session_state and st.session_state.user: return True
+    st.markdown("<h1 style='text-align: center;'>🔒 Gym Login</h1>", unsafe_allow_html=True)
+    
+    client = get_client()
+    if not client: return False
+    
+    try:
+        ws = client.open("Gym_Data").worksheet("Usuarios")
     except:
-        st.error("⚠️ Crea la pestaña 'Usuarios' en tu Google Sheet (Columnas: Usuario, Password)")
+        st.error("Crea la pestaña 'Usuarios' en Sheets!")
         return False
-
-    tab_login, tab_registro = st.tabs(["Iniciar Sesión", "Crear Cuenta"])
-
-    with tab_login:
-        with st.form("login"):
+        
+    t1, t2 = st.tabs(["Entrar", "Registrar"])
+    with t1:
+        with st.form("lo"):
             u = st.text_input("Usuario")
-            p = st.text_input("Contraseña", type="password")
-            if st.form_submit_button("Entrar ➡️", use_container_width=True):
-                users = hoja_usuarios.get_all_records()
-                for reg in users:
-                    if str(reg["Usuario"]) == u and str(reg["Password"]) == p:
-                        st.session_state.usuario_actual = u
+            p = st.text_input("Pass", type="password")
+            if st.form_submit_button("Entrar"):
+                users = ws.get_all_records()
+                for x in users:
+                    if str(x["Usuario"]) == u and str(x["Password"]) == p:
+                        st.session_state.user = u
                         st.rerun()
-                st.error("Datos incorrectos")
-
-    with tab_registro:
-        with st.form("reg"):
-            nu = st.text_input("Nuevo Usuario")
-            np = st.text_input("Nueva Contraseña", type="password")
-            if st.form_submit_button("Crear 🆕", use_container_width=True):
-                users = hoja_usuarios.get_all_records()
-                if nu in [str(r["Usuario"]) for r in users]:
-                    st.error("Ya existe")
-                else:
-                    hoja_usuarios.append_row([nu, np])
-                    st.success("Creado! Logueate.")
+                st.error("Error")
+    with t2:
+        with st.form("re"):
+            nu = st.text_input("Nuevo User")
+            np = st.text_input("Nueva Pass", type="password")
+            if st.form_submit_button("Crear"):
+                ws.append_row([nu, np])
+                st.success("Creado!")
     return False
 
-if not gestion_usuarios(): st.stop()
+if not login(): st.stop()
 
-# --- VARIABLES GLOBALES ---
-USUARIO = st.session_state.usuario_actual
-client = get_google_sheet_client()
-sheet_datos = client.open("Gym_Data").sheet1
+# --- VARIABLES ---
+USUARIO = st.session_state.user
+IMAGENES, RUTINAS, CLIENTE = cargar_datos_config()
 
-IMAGENES = {
-    "Fondos": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Chest-Dips.gif",
-    "Press Inclinado": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Incline-Barbell-Bench-Press.gif",
-    "Pec Deck": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Pec-Deck-Fly.gif",
-    "Elevaciones Laterales": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Dumbbell-Lateral-Raise.gif",
-    "Press Militar": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Military-Press.gif",
-    "Tríceps Polea": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Push-Down.gif",
-    "Dominadas": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Pull-up.gif",
-    "Remo Barra": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Bent-Over-Row.gif",
-    "Jalón Pecho": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Lat-Pulldown.gif",
-    "Face Pull": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Face-Pull.gif",
-    "Curl Bayesiano": "https://i.pinimg.com/originals/ce/0f/36/ce0f365d9539260195d8527a2068bf86.gif",
-    "Curl Martillo": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Hammer-Curl.gif",
-    "Sentadilla": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Squat.gif",
-    "Hip Thrust": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Hip-Thrust.gif",
-    "Peso Muerto Rumano": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Romanian-Deadlift.gif",
-    "Elevacion de Pantorrillas": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Dumbbell-Calf-Raise.gif",
-    "Curl femoral sentado": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Seated-Leg-Curl.gif",
-    "Abductores en maquina": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Seated-Hip-Abduction.gif",
-    "Press Banca": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Bench-Press.gif",
-    "Fondos Lastre": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Chest-Dips.gif",
-    "Press Francés": "https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Triceps-Extension.gif",
-    "Curl Araña": "https://d205bpvrqc9yn1.cloudfront.net/0309.gif",
-}
-
-rutina = {
-    "Día 1: Pecho-Hombro-Tríceps": ["Fondos", "Press Inclinado", "Pec Deck", "Elevaciones Laterales", "Press Militar", "Tríceps Polea"],
-    "Día 2: Espalda-Bicep": ["Dominadas", "Remo Barra", "Jalón Pecho", "Face Pull", "Curl Bayesiano", "Curl Martillo"],
-    "Día 3: Pierna": ["Sentadilla", "Hip Thrust", "Peso Muerto Rumano", "Elevacion de Pantorrillas", "Curl femoral sentado", "Abductores en maquina"],
-    "Día 5: Torso": ["Press Inclinado", "Press Banca", "Remo Barra", "Jalón Pecho", "Fondos Lastre"],
-    "Día 6: Brazos": ["Elevaciones Laterales", "Press Militar", "Press Francés", "Tríceps Polea", "Curl Araña", "Curl Martillo"]
-}
-
-# --- 4. TIMER ---
-def timer_descanso():
-    place = st.empty()
-    bar = st.progress(0)
+# --- TIMER ---
+def timer():
+    pl = st.empty(); bar = st.progress(0)
     for i in range(60, -1, -1):
         bar.progress((60-i)/60)
-        place.markdown(f"### ⏳ Descanso: {i}s")
+        pl.markdown(f"### ⏳ {i}s")
         time.sleep(1)
-    place.markdown("### 🔔 ¡DALE!")
+    pl.markdown("### 🔔 DALE!")
     st.audio("https://cdn.pixabay.com/audio/2022/03/15/audio_243469c434.mp3", autoplay=True)
-    time.sleep(2)
-    place.empty(); bar.empty()
+    time.sleep(2); pl.empty(); bar.empty()
 
 # --- APP ---
-st.title(f"💪 Hola, {USUARIO}")
-if st.sidebar.button("Salir"):
-    st.session_state.usuario_actual = None; st.rerun()
+st.title(f"Hola, {USUARIO} 💪")
+if st.sidebar.button("Salir"): st.session_state.user = None; st.rerun()
 
-tab1, tab2 = st.tabs(["🏋️ Entrenar", "📈 Progreso"])
+# --- PESTAÑAS PRINCIPALES ---
+tab1, tab2, tab3 = st.tabs(["🏋️ Entrenar", "📈 Progreso", "⚙️ Configurar"])
 
+# 1. ENTRENAR
 with tab1:
-    dia = st.selectbox("Rutina:", list(rutina.keys()))
-    st.divider()
-    datos_guardar = []
+    if not RUTINAS:
+        st.info("⚠️ No hay rutinas creadas. Ve a la pestaña 'Configurar' para crear una.")
+    else:
+        dia = st.selectbox("Selecciona Rutina:", list(RUTINAS.keys()))
+        st.divider()
+        datos = []
+        
+        for ej in RUTINAS[dia]:
+            with st.expander(f"**{ej}**", expanded=True):
+                if ej in IMAGENES: st.image(IMAGENES[ej], width=150)
+                
+                key_c = f"c_{dia}_{ej}"
+                if key_c not in st.session_state: st.session_state[key_c] = 1
+                
+                for i in range(1, st.session_state[key_c] + 1):
+                    c1,c2,c3 = st.columns([2,2,1])
+                    kb = f"{ej}_{i}"
+                    with c1: p = st.text_input(f"S{i}", key=f"p{kb}", placeholder="Kg", label_visibility="collapsed")
+                    with c2: r = st.text_input(f"S{i}", key=f"r{kb}", placeholder="Reps", label_visibility="collapsed")
+                    with c3:
+                        if st.checkbox("✅", key=f"c{kb}"):
+                            if f"t{kb}" not in st.session_state:
+                                timer(); st.session_state[f"t{kb}"] = True
+                            if p and r: datos.append([dia, ej, i, p, r])
+                
+                if st.button(f"➕ Serie", key=f"add{ej}"):
+                    st.session_state[key_c] += 1
+                    st.rerun()
+                    
+        if st.button("💾 GUARDAR ENTRENAMIENTO", type="primary"):
+            if datos:
+                sh = CLIENTE.open("Gym_Data").sheet1
+                now = datetime.now().strftime("%Y-%m-%d")
+                rows = [[now, USUARIO] + d for d in datos]
+                sh.append_rows(rows)
+                st.balloons(); st.success("Guardado!")
+            else: st.warning("Nada marcado")
 
-    for ej in rutina[dia]:
-        with st.expander(f"**{ej}**", expanded=True):
-            if ej in IMAGENES: st.image(IMAGENES[ej], width=150)
-            
-            # --- LÓGICA DINÁMICA DE SERIES ---
-            # Creamos una variable en memoria para contar series de este ejercicio
-            key_count = f"count_{dia}_{ej}"
-            if key_count not in st.session_state:
-                st.session_state[key_count] = 1 # Empezamos con 1 serie
-            
-            # Mostramos las series actuales
-            for i in range(1, st.session_state[key_count] + 1):
-                c1, c2, c3 = st.columns([2, 2, 1])
-                kb = f"{ej}_s{i}"
-                with c1: p = st.text_input(f"S{i}", key=f"{kb}_p", placeholder="Kg", label_visibility="collapsed")
-                with c2: r = st.text_input(f"S{i}", key=f"{kb}_r", placeholder="Reps", label_visibility="collapsed")
-                with c3:
-                    if st.checkbox("✅", key=f"{kb}_c"):
-                        if f"t_{kb}" not in st.session_state:
-                            timer_descanso()
-                            st.session_state[f"t_{kb}"] = True
-                        if p and r: datos_guardar.append([dia, ej, i, p, r])
-
-            # BOTÓN PARA AGREGAR SERIE (+)
-            if st.button(f"➕ Serie a {ej}", key=f"add_{ej}"):
-                st.session_state[key_count] += 1
-                st.rerun()
-            
-    st.divider()
-    if st.button("💾 GUARDAR TODO", type="primary", use_container_width=True):
-        if datos_guardar:
-            now = datetime.now().strftime("%Y-%m-%d")
-            filas = [[now, USUARIO] + d for d in datos_guardar]
-            sheet_datos.append_rows(filas)
-            st.balloons()
-            st.success("Guardado!")
-        else:
-            st.warning("Marca alguna serie ✅")
-
+# 2. PROGRESO
 with tab2:
-    st.header(f"Historial de {USUARIO}")
     try:
-        df = pd.DataFrame(sheet_datos.get_all_records())
+        sh = CLIENTE.open("Gym_Data").sheet1
+        df = pd.DataFrame(sh.get_all_records())
         if not df.empty and "Usuario" in df.columns:
-            df = df[df["Usuario"] == USUARIO] # Solo mis datos
+            df = df[df["Usuario"] == USUARIO]
             if not df.empty:
                 df["Peso"] = pd.to_numeric(df["Peso"], errors='coerce')
                 df["Fecha"] = pd.to_datetime(df["Fecha"])
                 
-                sel = st.selectbox("Ejercicio:", df["Ejercicio"].unique())
-                df_c = df[df["Ejercicio"] == sel]
-                
+                ej = st.selectbox("Ejercicio:", df["Ejercicio"].unique())
+                df_c = df[df["Ejercicio"] == ej]
                 st.line_chart(df_c, x="Fecha", y="Peso")
-                st.metric("Récord", f"{df_c['Peso'].max()} Kg")
                 st.dataframe(df_c.sort_values("Fecha", ascending=False))
-            else: st.info("Sin datos aún.")
+            else: st.info("Sin datos.")
     except: st.error("Error leyendo datos.")
+
+# 3. CONFIGURAR (NUEVO)
+with tab3:
+    st.header("⚙️ Gestión del Gym")
+    
+    st_conf1, st_conf2 = st.tabs(["➕ Nuevo Ejercicio", "📝 Crear Rutina"])
+    
+    # AGREGAR EJERCICIO
+    with st_conf1:
+        with st.form("add_ej"):
+            ne_nombre = st.text_input("Nombre del Ejercicio (Ej: Curl Z)")
+            ne_url = st.text_input("Link GIF/Imagen (Opcional)")
+            if st.form_submit_button("Guardar Ejercicio"):
+                try:
+                    ws_ej = CLIENTE.open("Gym_Data").worksheet("Ejercicios")
+                    ws_ej.append_row([ne_nombre, ne_url])
+                    st.success(f"Ejercicio '{ne_nombre}' agregado! Recarga la app.")
+                except: st.error("Error al guardar en hoja Ejercicios")
+
+    # CREAR RUTINA
+    with st_conf2:
+        with st.form("add_rut"):
+            nr_nombre = st.text_input("Nombre Nueva Rutina (Ej: Hombro Mortal)")
+            
+            # Obtenemos lista de ejercicios disponibles para elegir
+            ws_ej = CLIENTE.open("Gym_Data").worksheet("Ejercicios")
+            lista_raw = ws_ej.col_values(1)[1:] # Columna 1, quitando título
+            
+            ejercicios_selec = st.multiselect("Selecciona los ejercicios:", lista_raw)
+            
+            if st.form_submit_button("Crear Rutina"):
+                if nr_nombre and ejercicios_selec:
+                    try:
+                        ws_rut = CLIENTE.open("Gym_Data").worksheet("Rutinas_Config")
+                        # Preparamos filas: NombreRutina | Ejercicio
+                        filas_rutina = [[nr_nombre, ej] for ej in ejercicios_selec]
+                        ws_rut.append_rows(filas_rutina)
+                        st.success(f"Rutina '{nr_nombre}' creada! Recarga la app para verla.")
+                    except: st.error("Error guardando rutina")
+                else:
+                    st.warning("Escribe un nombre y elige ejercicios.")
