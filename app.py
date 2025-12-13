@@ -94,7 +94,7 @@ def timer(segundos):
         time.sleep(1)
     pl.markdown("### 🔔 ¡SERIE LISTA!")
     bar.empty()
-    st.audio("https://www.soundjay.com/buttons/sounds/beep-07.mp3", autoplay=True)
+    st.audio("https://www.soundjay.com/misc/sounds/small-bell-ring-01a.mp3", autoplay=True)
     time.sleep(3); pl.empty()
 
 # --- FUNCIÓN DE EJERCICIO AISLADO (FRAGMENTO MÁGICO) ---
@@ -214,3 +214,4 @@ with tab3:
             if st.form_submit_button("Crear"):
                 CLIENTE.open("Gym_Data").worksheet("Rutinas_Config").append_rows([[n, e] for e in ejs])
                 st.success("Creada.")
+
